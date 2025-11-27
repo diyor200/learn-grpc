@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+option go_package = "fileupload.v1; fileuploadv1";
+
+package fileupload;
+
+message FileChunk {
+  string name = 1;
+  bytes data = 2;
+}
+
+message UploadStatus {
+  string message = 1;
+  int64 size = 2;
+  string sha256 = 3;
+}
+
+service FileService {
+  rpc FileUpload(stream FileChunk) returns (UploadStatus){}
+}
