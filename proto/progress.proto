@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+option go_package = "progress.v1;progressv1";
+
+package progress;
+
+service ProgressService{
+  rpc GetProgress (ProgressRequest) returns (stream ProgressResponse){}
+}
+
+message ProgressRequest {
+  string task_id = 1;
+}
+
+message ProgressResponse {
+  int32 percent = 1;
+  string message = 2;
+}
