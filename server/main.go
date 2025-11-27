@@ -15,9 +15,9 @@ type server struct {
 func (s *server) GetProgress(req *progressv1.ProgressRequest, stream progressv1.ProgressService_GetProgressServer) error {
 	//progressList := []int32{0, 25, 50, 75, 100}
 
-	for i := 0; i < 100; i += 4 {
+	for i := int32(1); i <= 100; i++ {
 		err := stream.Send(&progressv1.ProgressResponse{
-			Percent: int32(i),
+			Percent: i,
 			Message: "Fetching progress ...",
 		})
 		if err != nil {
@@ -25,7 +25,7 @@ func (s *server) GetProgress(req *progressv1.ProgressRequest, stream progressv1.
 			return err
 		}
 
-		time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Millisecond * 50)
 	}
 
 	return nil
