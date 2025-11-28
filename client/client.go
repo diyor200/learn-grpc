@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
-	fileuploadv1 "github.com/diyor200/learn-grpc/proto"
-	"google.golang.org/grpc"
 	"io"
 	"log"
+	"math"
 	"os"
+
+	fileuploadv1 "github.com/diyor200/learn-grpc/proto"
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -18,7 +20,7 @@ func main() {
 
 	client := fileuploadv1.NewFileServiceClient(conn)
 
-	filePath := "img.HEIC"
+	filePath := "swift.tar.gz"
 	stream, err := client.FileUpload(context.Background())
 	if err != nil {
 		log.Fatalf("FileUpload err: %v", err)
@@ -36,6 +38,8 @@ func main() {
 	defer file.Close()
 
 	buf := make([]byte, 1024*64)
+	var sentBytes int64
+	fileInfo, _ := file.Stat()
 
 	for {
 		n, err := file.Read(buf)
@@ -55,6 +59,10 @@ func main() {
 		if err != nil {
 			log.Fatalf("stream.Send err: %v", err)
 		}
+
+		sentBytes += int64(n)
+		percent := float64(sentBytes) / float64(fileInfo.Size()) * 100
+		log.Printf("Uploaded: %d%%", int(math.Round(percent)))
 	}
 
 	res, err := stream.CloseAndRecv()
