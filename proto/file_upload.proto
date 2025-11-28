@@ -7,6 +7,7 @@ package fileupload;
 message FileChunk {
   string name = 1;
   bytes data = 2;
+  int64 offset = 3;
 }
 
 message UploadStatus {
@@ -16,5 +17,17 @@ message UploadStatus {
 }
 
 service FileService {
+  // check how many bytes uploaded
+  rpc CheckFile (CheckRequest) returns (CheckResponse) {}
+
+  // uploaded file
   rpc FileUpload(stream FileChunk) returns (UploadStatus){}
+}
+
+message CheckRequest {
+  string filename = 1;
+}
+
+message CheckResponse {
+  int64 uploadedSize = 1;
 }

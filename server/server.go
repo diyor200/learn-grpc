@@ -1,24 +1,43 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	fileuploadv1 "github.com/diyor200/learn-grpc/proto"
-	"google.golang.org/grpc"
 	"io"
 	"log"
 	"net"
 	"os"
-	"path/filepath"
+
+	fileuploadv1 "github.com/diyor200/learn-grpc/proto"
+	"google.golang.org/grpc"
 )
 
 type server struct {
 	fileuploadv1.UnimplementedFileServiceServer
 }
 
+func (s *server) CheckFile(ctx context.Context, in *fileuploadv1.CheckRequest) (*fileuploadv1.CheckResponse, error) {
+	log.Println("received check file request")
+
+	info, err := os.Stat(in.Filename)
+	if err != nil {
+		log.Println(err)
+		if os.IsNotExist(err) {
+			return &fileuploadv1.CheckResponse{UploadedSize: 0}, nil
+		}
+		return nil, err
+	}
+
+	return &fileuploadv1.CheckResponse{UploadedSize: info.Size()}, nil
+}
+
 func (s *server) FileUpload(stream fileuploadv1.FileService_FileUploadServer) error {
+	log.Println("received file upload request")
+
 	var file *os.File
 	var totalSize int64 = 0
+	var fileName string
 
 	hasher := sha256.New()
 
@@ -43,13 +62,18 @@ func (s *server) FileUpload(stream fileuploadv1.FileService_FileUploadServer) er
 		}
 
 		if file == nil {
-			fileName := filepath.Base(chunk.Name)
-			file, err = os.Create(fileName)
+			fileName = chunk.Name
+			file, err = os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
+				log.Println(err)
 				return err
 			}
 
-			log.Println("Creating file:", fileName)
+			_, err = file.Seek(chunk.Offset, 0)
+			if err != nil {
+				log.Println(err)
+				return err
+			}
 		}
 
 		n, err := file.Write(chunk.Data)
@@ -73,6 +97,8 @@ func main() {
 
 	s := grpc.NewServer()
 	fileuploadv1.RegisterFileServiceServer(s, &server{})
+
+	log.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}

@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"path"
 
 	fileuploadv1 "github.com/diyor200/learn-grpc/proto"
 	"google.golang.org/grpc"
@@ -26,28 +27,47 @@ func main() {
 		log.Fatalf("FileUpload err: %v", err)
 	}
 
-	err = stream.Send(&fileuploadv1.FileChunk{Name: filePath})
+	// check file
+	check, err := client.CheckFile(context.Background(), &fileuploadv1.CheckRequest{Filename: filePath})
 	if err != nil {
-		log.Fatalf("FileUpload err: %v", err)
+		log.Fatalf("could not check file: %v", err)
 	}
 
+	if check.UploadedSize == 0 {
+		err = stream.Send(&fileuploadv1.FileChunk{Name: filePath})
+		if err != nil {
+			log.Fatalf("FileUpload err: %v", err)
+		}
+	}
+
+	filePath = path.Base(filePath)
 	file, err := os.Open(filePath)
 	if err != nil {
 		log.Fatalf("os.Open err: %v", err)
 	}
 	defer file.Close()
 
+	fileInfo, _ := file.Stat()
+	if check.UploadedSize == fileInfo.Size() {
+		_, err = stream.CloseAndRecv()
+		if err != nil {
+			log.Fatalf("FileUpload err: %v", err)
+		}
+
+		log.Println("file already uploaded")
+		return
+	}
+
 	buf := make([]byte, 1024*64)
 	var sentBytes int64
-	fileInfo, _ := file.Stat()
 
+	_, err = file.Seek(check.UploadedSize, 0)
+	if err != nil {
+		log.Fatalf("FileUpload err: %v", err)
+	}
 	for {
 		n, err := file.Read(buf)
 		if err == io.EOF {
-			err = stream.CloseSend()
-			if err != nil {
-				log.Fatalf("stream.CloseSend err: %v", err)
-			}
 			break
 		}
 
@@ -55,13 +75,13 @@ func main() {
 			log.Fatalf("file.Read err: %v", err)
 		}
 
-		err = stream.Send(&fileuploadv1.FileChunk{Data: buf[:n]})
+		err = stream.Send(&fileuploadv1.FileChunk{Name: filePath, Data: buf[:n], Offset: check.UploadedSize + sentBytes})
 		if err != nil {
 			log.Fatalf("stream.Send err: %v", err)
 		}
 
 		sentBytes += int64(n)
-		percent := float64(sentBytes) / float64(fileInfo.Size()) * 100
+		percent := float64(sentBytes+check.UploadedSize) / float64(fileInfo.Size()) * 100
 		log.Printf("Uploaded: %d%%", int(math.Round(percent)))
 	}
 
