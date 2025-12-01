@@ -4,30 +4,27 @@ option go_package = "fileupload.v1; fileuploadv1";
 
 package fileupload;
 
-message FileChunk {
-  string name = 1;
-  bytes data = 2;
+message UploadChunkRequest {
+  string filename = 1;
+  int64 chunk_id = 2;
   int64 offset = 3;
+  bytes data = 4;
 }
 
-message UploadStatus {
+message UploadChunkResponse {
+  int64 received_bytes = 1;
+}
+
+message CompleteFileRequest {
+  string filename = 1;
+  int64 total_chunks = 2;
+}
+
+message CompleteFileResponse {
   string message = 1;
-  int64 size = 2;
-  string sha256 = 3;
 }
 
 service FileService {
-  // check how many bytes uploaded
-  rpc CheckFile (CheckRequest) returns (CheckResponse) {}
-
-  // uploaded file
-  rpc FileUpload(stream FileChunk) returns (UploadStatus){}
-}
-
-message CheckRequest {
-  string filename = 1;
-}
-
-message CheckResponse {
-  int64 uploadedSize = 1;
+  rpc UploadChunk (stream UploadChunkRequest) returns (UploadChunkResponse){}
+  rpc CompleteFile (CompleteFileRequest) returns (CompleteFileResponse){}
 }
