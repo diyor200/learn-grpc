@@ -1,30 +1,47 @@
 syntax = "proto3";
 
-option go_package = "fileupload.v1; fileuploadv1";
-
 package fileupload;
 
+option go_package = "fileupload.v1;fileuploadv1";
+
+service FileService {
+  // Har bir chunk uchun bitta unary RPC (parallel-friendly)
+  rpc UploadChunk (UploadChunkRequest) returns (UploadChunkResponse);
+
+  // Barcha chunklar yuklangach, client merge soʻraydi
+  rpc CompleteFile (CompleteFileRequest) returns (CompleteFileResponse);
+
+  // (Optional) resume: serverda qancha bytes mavjudligini tekshirish
+  rpc CheckFile(CheckRequest) returns (CheckResponse);
+}
+
 message UploadChunkRequest {
-  string filename = 1;
-  int64 chunk_id = 2;
-  int64 offset = 3;
-  bytes data = 4;
+  string filename = 1; // original filename
+  int64 chunk_id = 2;  // 0..N-1
+  int64 offset = 3;    // byte offset
+  bytes data = 4;      // chunk data
 }
 
 message UploadChunkResponse {
-  int64 received_bytes = 1;
+  int64 received = 1;
 }
 
 message CompleteFileRequest {
   string filename = 1;
-  int64 total_chunks = 2;
+  int64 total_size = 2;
+  int32 total_chunks = 3;
 }
 
 message CompleteFileResponse {
   string message = 1;
+  int64 size = 2;
+  string sha256 = 3;
 }
 
-service FileService {
-  rpc UploadChunk (stream UploadChunkRequest) returns (UploadChunkResponse){}
-  rpc CompleteFile (CompleteFileRequest) returns (CompleteFileResponse){}
+message CheckRequest {
+  string filename = 1;
+}
+
+message CheckResponse {
+  int64 uploadedSize = 1;
 }
